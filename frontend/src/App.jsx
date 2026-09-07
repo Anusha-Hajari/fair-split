@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'https://fairsplit-api-c978.onrender.com';
 
 export default function App() {
   const fileInputId = useId();
