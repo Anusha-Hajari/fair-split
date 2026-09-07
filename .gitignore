@@ -1,13 +1,17 @@
-# Python environment & cache
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Python virtual environment & cache
 venv/
 backend/venv/
 __pycache__/
 *.py[cod]
-*.env
-*.env.local
 
 # Node & Frontend build
 node_modules/
+frontend/node_modules/
 dist/
 dist-ssr/
 *.local

@@ -26,18 +26,35 @@ class ExtractedItem(BaseModel):
         return self
 
 
+from pydantic import BaseModel, Field, field_validator
+
 class BillMetadata(BaseModel):
-    """
-    Metadata for non-item overheads and printed receipt totals.
-    """
-    subtotal: float = Field(description="Printed food subtotal before taxes and charges")
-    service_charge: float = Field(default=0.0, description="Service charge fee")
+    subtotal: float = Field(default=0.0, description="Printed food subtotal before taxes and charges")
+    service_charge: float = Field(default=0.0, description="Service charge or packaging fee")
     cgst: float = Field(default=0.0, description="Central GST")
     sgst: float = Field(default=0.0, description="State GST")
     liquor_vat: float = Field(default=0.0, description="Liquor / VAT tax amount")
     discount: float = Field(default=0.0, description="Discount amount applied to the bill")
-    printed_total: float = Field(description="Grand total printed on the physical bill")
+    printed_total: float = Field(default=0.0, description="Grand total printed on the physical bill")
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    currency_symbol: str = Field(
+        default="₹", 
+        description="Single currency symbol ONLY: ₹, $, €, or £. Never include words or explanations."
+    )
+
+    @field_validator('currency_symbol', mode='after')
+    @classmethod
+    def clean_currency(cls, v: str) -> str:
+        # Strip extraneous text/hallucinations and fallback safely
+        v = str(v).strip()
+        for symbol in ["₹", "$", "€", "£"]:
+            if symbol in v:
+                return symbol
+        if "rs" in v.lower() or "inr" in v.lower():
+            return "₹"
+        if "usd" in v.lower():
+            return "$"
+        return "₹"
 
 
 class BillExtractionResponse(BaseModel):

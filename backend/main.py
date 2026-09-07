@@ -62,8 +62,12 @@ async def extract_receipt(
 
     client = genai.Client(api_key=api_key)
     
-    # Models to try with fallback and retry on high demand (503)
-    candidate_models = ["gemini-3.6-flash", "gemini-2.5-flash"]
+    # Prioritize active models directly available on your API key
+    candidate_models = [
+        "gemini-3.6-flash",
+        "gemini-2.5-flash",
+        "gemini-flash-latest"
+    ]
     last_error = None
 
     for model_name in candidate_models:
@@ -74,17 +78,15 @@ async def extract_receipt(
                     contents=[*pil_images, EXTRACTION_PROMPT],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
-                        response_schema=BillExtractionResponse,
-                        temperature=0.1
+                        response_schema=BillExtractionResponse
                     ),
                 )
                 return BillExtractionResponse.model_validate_json(response.text)
             except Exception as e:
                 last_error = str(e)
-                if "503" in last_error or "UNAVAILABLE" in last_error:
-                    time.sleep(2 ** attempt)  # Wait 1s, 2s before retrying
+                if any(code in last_error for code in ["503", "UNAVAILABLE", "429"]):
+                    time.sleep(2 ** attempt)
                     continue
-                # If it's a 404 or other non-transient error, break to next model
                 break
 
     raise HTTPException(status_code=500, detail=f"OCR Parsing failed: {last_error}")
