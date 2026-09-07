@@ -77,8 +77,8 @@ async def extract_receipt(
     
     # Active, high-throughput Gemini models
     candidate_models = [
+        "gemini-3.6-flash",
         "gemini-2.5-flash",
-        "gemini-2.0-flash"
     ]
     last_error = None
 
