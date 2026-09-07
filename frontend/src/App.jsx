@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useId } from 'react';
+import React, { useState, useId } from 'react';
 import { 
-  Upload, Users, AlertTriangle, CheckCircle, RefreshCw, 
-  QrCode, ArrowRight, DollarSign, ShieldAlert, Sparkles 
+  Upload, Users, AlertTriangle, RefreshCw, 
+  QrCode, DollarSign, ShieldAlert, Sparkles, Check 
 } from 'lucide-react';
 import QRCode from 'qrcode';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
 export default function App() {
   const fileInputId = useId();
@@ -37,12 +38,11 @@ export default function App() {
     setErrorMsg('');
 
     const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append('images', files[i]);
-    }
+    if (files[0]) formData.append('image', files[0]);
+    if (files[1]) formData.append('image_part2', files[1]);
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/extract', {
+      const res = await fetch(`${API_BASE_URL}/api/extract`, {
         method: 'POST',
         body: formData,
       });
@@ -55,7 +55,10 @@ export default function App() {
       const data = await res.json();
       setItems(data.items);
       setMetadata(data.metadata);
-      setTargetTotal(data.metadata.printed_total);
+      
+      // Target total must always be the printed grand total (including GST/taxes)
+      const grandTotal = data.metadata?.printed_total || data.calculated_subtotal;
+      setTargetTotal(grandTotal);
 
       if (data.is_discrepancy_detected) {
         setDiscrepancy({
@@ -63,6 +66,8 @@ export default function App() {
           printed: data.metadata.subtotal,
           diff: data.discrepancy_amount
         });
+      } else {
+        setDiscrepancy(null);
       }
 
       // Initialize default empty assignments
@@ -112,6 +117,9 @@ export default function App() {
     setLoading(true);
     setErrorMsg('');
 
+    // Fallback: If targetTotal somehow became zero or unset, ensure it uses printed grand total
+    const finalTarget = (targetTotal && targetTotal > 0) ? targetTotal : metadata?.printed_total;
+
     const payload = {
       items: items.map((item) => ({
         id: item.id,
@@ -120,17 +128,20 @@ export default function App() {
       })),
       metadata: metadata,
       participants: participants,
-      target_total: targetTotal
+      target_total: finalTarget
     };
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/split', {
+      const res = await fetch(`${API_BASE_URL}/api/split`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Failed to run split calculation');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Failed to run split calculation');
+      }
 
       const data = await res.json();
       setSettlements(data);
@@ -214,34 +225,49 @@ export default function App() {
         {step === 2 && (
           <div className="space-y-4">
             {discrepancy && (
-              <div className="p-4 bg-amber-950/40 border border-amber-800/60 rounded-xl space-y-2">
-                <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
-                  <ShieldAlert className="w-5 h-5 shrink-0" />
-                  Receipt Math Discrepancy Detected (Broken Total Trap)
+              <div className="p-4 bg-amber-950/40 border border-amber-800/60 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
+                    <ShieldAlert className="w-5 h-5 shrink-0" />
+                    Receipt Math Discrepancy Detected (Broken Total Trap)
+                  </div>
+                  <span className="text-xs font-mono bg-emerald-950 border border-emerald-800 text-emerald-300 px-2 py-0.5 rounded">
+                    Target Grand Total: ₹{targetTotal?.toFixed(2)}
+                  </span>
                 </div>
                 <p className="text-xs text-amber-200/80 leading-relaxed">
-                  Sum of line items is <strong>₹{discrepancy.calculated}</strong>, but printed subtotal says <strong>₹{discrepancy.printed}</strong> (Mismatch: ₹{discrepancy.diff}).
+                  Sum of individual food items is <strong>₹{discrepancy.calculated}</strong>, but printed receipt subtotal indicates <strong>₹{discrepancy.printed}</strong> (Mismatch: ₹{discrepancy.diff}).
                 </p>
-                <div className="flex gap-2 pt-2 text-xs">
+                <div className="flex gap-2 pt-1 text-xs">
                   <button 
-                    onClick={() => setTargetTotal(discrepancy.calculated)}
-                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-black font-semibold rounded"
+                    onClick={() => {
+                      // Uses printed grand total as the target
+                      setTargetTotal(metadata?.printed_total || discrepancy.calculated);
+                      setDiscrepancy(null);
+                    }}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded transition-all"
                   >
-                    Trust Line Items (₹{discrepancy.calculated})
+                    ✓ Reconcile & Use Printed Total (₹{metadata?.printed_total?.toFixed(2)})
                   </button>
                   <button 
-                    onClick={() => setTargetTotal(discrepancy.printed)}
-                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded"
+                    onClick={() => {
+                      // Adjusts target by the difference
+                      const adjusted = (metadata?.printed_total || 0) + (discrepancy.calculated - discrepancy.printed);
+                      setTargetTotal(adjusted);
+                      setDiscrepancy(null);
+                    }}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded transition-all"
                   >
-                    Trust Printed Total (₹{discrepancy.printed})
+                    Trust Line Items (Adjust Overheads)
                   </button>
                 </div>
               </div>
             )}
 
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-              <div className="p-3 bg-slate-800/60 font-semibold text-xs text-slate-300 uppercase tracking-wider">
-                Extracted Line Items
+              <div className="p-3 bg-slate-800/60 flex justify-between items-center text-xs text-slate-300 font-semibold uppercase tracking-wider">
+                <span>Extracted Line Items</span>
+                <span className="text-emerald-400 font-mono">Target Grand Total: ₹{targetTotal?.toFixed(2)}</span>
               </div>
               <div className="divide-y divide-slate-800 max-h-96 overflow-y-auto">
                 {items.map((item, idx) => (
@@ -363,7 +389,7 @@ export default function App() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-slate-100">Settlement Ledger</h2>
-                <p className="text-xs text-slate-400">Exact penny balance with zero leakages</p>
+                <p className="text-xs text-slate-400">Exact penny balance with zero leakages (Total: ₹{targetTotal?.toFixed(2)})</p>
               </div>
               <button 
                 onClick={() => setStep(3)} 

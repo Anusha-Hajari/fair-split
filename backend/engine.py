@@ -92,9 +92,8 @@ def calculate_proportional_split(
     target_total: Optional[float] = None
 ) -> List[ParticipantSettlement]:
     """
-    Distributes overheads (GST, Service Charge) proportionally across participants
-    based on what they actually consumed. Guarantees 0-cent rounding leakage via
-    the Largest Remainder (Hamilton) Method.
+    Distributes overheads proportionally across participants based on what 
+    they actually consumed. Guarantees zero-penny leakage via integer Hamilton apportionment.
     """
     effective_total = target_total if target_total is not None else metadata.printed_total
 
@@ -110,46 +109,41 @@ def calculate_proportional_split(
 
     total_food_base = sum(consumption.values())
 
-    # 2. Net Overhead Pool (Service Charge + Tax - Discount)
-    net_overhead = (
-        metadata.service_charge
-        + metadata.cgst
-        + metadata.sgst
-        + metadata.liquor_vat
-        - metadata.discount
-    )
+    if total_food_base == 0:
+        return [
+            ParticipantSettlement(
+                name=p,
+                food_base=0.0,
+                proportional_overhead=0.0,
+                total_payable=0.0,
+                saved_vs_equal_split=0.0
+            ) for p in participants
+        ]
 
-    # 3. Proportional Floating Share
-    raw_shares: Dict[str, float] = {}
-    for p in participants:
-        base = consumption[p]
-        if base > 0 and total_food_base > 0:
-            overhead = (base / total_food_base) * net_overhead
-            raw_shares[p] = base + overhead
-        else:
-            raw_shares[p] = 0.0
-
-    # 4. Hamilton (Largest Remainder) Method for exact integer cents/paise
+    # 2. Convert target total into exact integer cents/paise
     target_cents = int(round(effective_total * 100))
+
+    # 3. Hamilton (Largest Remainder) Apportionment
     floored_cents: Dict[str, int] = {}
     remainders: Dict[str, float] = {}
 
     for p in participants:
-        cents = raw_shares[p] * 100
-        floored = math.floor(cents)
+        exact = (consumption[p] / total_food_base) * target_cents
+        floored = math.floor(round(exact, 6))
         floored_cents[p] = floored
-        remainders[p] = cents - floored
+        remainders[p] = exact - floored
 
-    current_cents = sum(floored_cents.values())
-    leftover_cents = target_cents - current_cents
+    # Compute unallocated cents/paise
+    leftover_cents = target_cents - sum(floored_cents.values())
 
+    # Distribute leftover paise to members with the largest remainder
     sorted_participants = sorted(participants, key=lambda p: remainders[p], reverse=True)
     if sorted_participants and leftover_cents > 0:
         for i in range(leftover_cents):
             receiver = sorted_participants[i % len(sorted_participants)]
             floored_cents[receiver] += 1
 
-    # 5. Build Final Output
+    # 4. Build Final Settlement Output
     naive_equal_split = effective_total / max(len(participants), 1)
     results = []
     for p in participants:

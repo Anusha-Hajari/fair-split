@@ -1,6 +1,7 @@
 import os
 import io
-from typing import List
+import time
+from typing import List, Annotated
 from PIL import Image
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,7 +17,6 @@ from engine import (
 
 app = FastAPI(title="FairSplit Proportional Engine API", version="1.0.0")
 
-# Enable CORS for the React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,40 +36,58 @@ Strict rules:
 """
 
 @app.post("/api/extract", response_model=BillExtractionResponse)
-async def extract_receipt(images: List[UploadFile] = File(...)):
+async def extract_receipt(
+    image: UploadFile = File(...),
+    image_part2: UploadFile | None = File(default=None)
+):
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(
             status_code=500, 
-            detail="GEMINI_API_KEY environment variable is not set. Run: $env:GEMINI_API_KEY='your_key'"
+            detail="GEMINI_API_KEY environment variable is not set."
         )
 
-    if not images:
-        raise HTTPException(status_code=400, detail="At least one bill photograph is required.")
+    incoming_files = [image]
+    if image_part2:
+        incoming_files.append(image_part2)
 
     pil_images = []
-    for img_file in images:
+    for img_file in incoming_files:
         content = await img_file.read()
         try:
-            image = Image.open(io.BytesIO(content))
-            pil_images.append(image)
+            img = Image.open(io.BytesIO(content))
+            pil_images.append(img)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid image file: {str(e)}")
 
-    try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[*pil_images, EXTRACTION_PROMPT],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=BillExtractionResponse,
-                temperature=0.1
-            ),
-        )
-        return BillExtractionResponse.model_validate_json(response.text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"OCR Parsing failed: {str(e)}")
+    client = genai.Client(api_key=api_key)
+    
+    # Models to try with fallback and retry on high demand (503)
+    candidate_models = ["gemini-3.6-flash", "gemini-2.5-flash"]
+    last_error = None
+
+    for model_name in candidate_models:
+        for attempt in range(3):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[*pil_images, EXTRACTION_PROMPT],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        response_schema=BillExtractionResponse,
+                        temperature=0.1
+                    ),
+                )
+                return BillExtractionResponse.model_validate_json(response.text)
+            except Exception as e:
+                last_error = str(e)
+                if "503" in last_error or "UNAVAILABLE" in last_error:
+                    time.sleep(2 ** attempt)  # Wait 1s, 2s before retrying
+                    continue
+                # If it's a 404 or other non-transient error, break to next model
+                break
+
+    raise HTTPException(status_code=500, detail=f"OCR Parsing failed: {last_error}")
 
 
 @app.post("/api/split", response_model=List[ParticipantSettlement])
