@@ -1,0 +1,100 @@
+{
+  "test_cases": [
+    {
+      "id": "bill_01_simple_dine_in",
+      "description": "Standard print with CGST and SGST",
+      "expected_subtotal": 1250.00,
+      "expected_tax": 62.50,
+      "expected_total": 1375.00,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_02_broken_total_trap",
+      "description": "Deliberately manipulated bill where printed subtotal is lower than line item sum",
+      "expected_subtotal": 840.00,
+      "expected_tax": 42.00,
+      "expected_total": 782.00,
+      "discrepancy_expected": true
+    },
+    {
+      "id": "bill_03_handwritten_total",
+      "description": "Handwritten tip and final total written at the bottom",
+      "expected_subtotal": 520.00,
+      "expected_tax": 26.00,
+      "expected_total": 600.00,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_04_faded_thermal",
+      "description": "Low-contrast faded paper with light ink",
+      "expected_subtotal": 410.00,
+      "expected_tax": 20.50,
+      "expected_total": 430.50,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_05_multi_page_boundary",
+      "description": "Two continuous photos of a long bill with overlapping items",
+      "expected_subtotal": 3400.00,
+      "expected_tax": 170.00,
+      "expected_total": 3570.00,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_06_alcohol_mixed_vat",
+      "description": "Food at 5% GST and liquor at 20% state excise VAT",
+      "expected_subtotal": 2100.00,
+      "expected_tax": 280.00,
+      "expected_total": 2380.00,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_07_service_charge_included",
+      "description": "Bill with 10% discretionary service charge before GST",
+      "expected_subtotal": 1500.00,
+      "expected_tax": 165.00,
+      "expected_total": 1815.00,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_08_discount_coupon",
+      "description": "Flat discount applied before taxes",
+      "expected_subtotal": 950.00,
+      "expected_tax": 40.00,
+      "expected_total": 840.00,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_09_crinkled_paper",
+      "description": "Wrinkled receipt causing skewed text angles",
+      "expected_subtotal": 670.00,
+      "expected_tax": 33.50,
+      "expected_total": 703.50,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_10_foreign_currency_tip",
+      "description": "Receipt with card fee markup and cash rounding",
+      "expected_subtotal": 1820.00,
+      "expected_tax": 91.00,
+      "expected_total": 1911.00,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_11_item_level_discounts",
+      "description": "Combo meals with individual item deductions",
+      "expected_subtotal": 1120.00,
+      "expected_tax": 56.00,
+      "expected_total": 1176.00,
+      "discrepancy_expected": false
+    },
+    {
+      "id": "bill_12_coffee_shop_minimal",
+      "description": "Single-line receipt with inclusive tax",
+      "expected_subtotal": 250.00,
+      "expected_tax": 0.00,
+      "expected_total": 250.00,
+      "discrepancy_expected": false
+    }
+  ]
+}
