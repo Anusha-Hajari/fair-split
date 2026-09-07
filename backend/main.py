@@ -1,7 +1,7 @@
 import os
 import io
 import time
-from typing import List, Annotated
+from typing import List
 from PIL import Image
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +15,12 @@ from engine import (
     calculate_proportional_split
 )
 
-app = FastAPI(title="FairSplit Proportional Engine API", version="1.0.0")
+app = FastAPI(
+    title="FairSplit Proportional Engine API",
+    version="1.0.0",
+    docs_url="/docs",
+    openapi_url="/openapi.json"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +39,14 @@ Strict rules:
 4. Mark alcoholic beverages as is_alcohol: true.
 5. If two photos of a single long bill are provided, do not duplicate boundary items.
 """
+
+@app.get("/")
+def root():
+    return {"status": "online", "service": "FairSplit Proportional Engine API", "docs": "/docs"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "FairSplit Backend"}
 
 @app.post("/api/extract", response_model=BillExtractionResponse)
 async def extract_receipt(
@@ -62,11 +75,10 @@ async def extract_receipt(
 
     client = genai.Client(api_key=api_key)
     
-    # Prioritize active models directly available on your API key
+    # Active, high-throughput Gemini models
     candidate_models = [
-        "gemini-3.6-flash",
         "gemini-2.5-flash",
-        "gemini-flash-latest"
+        "gemini-2.0-flash"
     ]
     last_error = None
 
@@ -100,8 +112,3 @@ async def calculate_split(req: SplitCalculationRequest):
         participants=req.participants,
         target_total=req.target_total
     )
-
-
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "service": "FairSplit Backend"}
