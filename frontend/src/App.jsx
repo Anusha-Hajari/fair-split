@@ -443,12 +443,21 @@ export default function App() {
               </div>
             </div>
 
-            <button 
-              onClick={() => setStep(3)}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 font-medium py-3 rounded-xl text-sm transition-all shadow-lg shadow-indigo-950/50"
-            >
-              Continue to Member Tagging
-            </button>
+            {/* Stage 2 Navigation Controls (Back & Continue) */}
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setStep(1)}
+                className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl text-sm transition-all border border-indigo-950"
+              >
+                ← Back to Upload
+              </button>
+              <button 
+                onClick={() => setStep(3)}
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 font-medium py-3 rounded-xl text-sm transition-all shadow-lg shadow-indigo-950/50"
+              >
+                Continue to Member Tagging
+              </button>
+            </div>
           </div>
         )}
 
@@ -521,13 +530,22 @@ export default function App() {
               </div>
             </div>
 
-            <button 
-              onClick={handleCalculateSplit}
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 font-medium py-3 rounded-xl text-sm transition-all shadow-lg shadow-indigo-950/60"
-            >
-              {loading ? 'Executing Hamilton Rounding...' : 'Calculate Proportional Split'}
-            </button>
+            {/* Stage 3 Navigation Controls (Back & Calculate) */}
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setStep(2)}
+                className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl text-sm transition-all border border-indigo-950"
+              >
+                ← Back to Edit Items
+              </button>
+              <button 
+                onClick={handleCalculateSplit}
+                disabled={loading}
+                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 font-medium py-3 rounded-xl text-sm transition-all shadow-lg shadow-indigo-950/60"
+              >
+                {loading ? 'Executing Hamilton Rounding...' : 'Calculate Proportional Split'}
+              </button>
+            </div>
           </div>
         )}
 
@@ -568,7 +586,7 @@ export default function App() {
               {settlements.map((res) => (
                 <div key={res.name} className="p-4 bg-[#111625] border border-indigo-950 rounded-2xl space-y-3 shadow-lg">
                   <div className="flex justify-between items-baseline">
-                    <span className="font-bold text-base text-slate-200">{res.name}</span>
+                    <span className="font-bold base text-slate-200">{res.name}</span>
                     <span className="font-mono text-xl font-bold text-cyan-400">{currency}{res.total_payable.toFixed(2)}</span>
                   </div>
                   <div className="text-xs space-y-1 text-slate-400 font-mono border-t border-indigo-950/80 pt-2">
